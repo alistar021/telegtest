@@ -1,5 +1,4 @@
 import telebot
-from telebot import types
 
 TOKEN = "8476998300:AAHrIH5HMc9TtXIHd-I8hH5MnDOGAkwMSlI"
 CHANNEL_ID = "@alialisend123"
@@ -13,7 +12,10 @@ user_data = {}
 # شروع ربات
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, "سلام به ربات ما خوش آمدید! لطفا نام و نام خانوادگی خود را وارد کنید:")
+    bot.send_message(
+        message.chat.id, 
+        f"سلام به ربات ما خوش آمدید! لطفا نام و نام خانوادگی خود را وارد کنید.\nبرای ثبت‌نام رسمی: {REGISTER_LINK}"
+    )
     user_data[message.chat.id] = {}
     bot.register_next_step_handler(message, get_name)
 
