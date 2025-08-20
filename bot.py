@@ -1,61 +1,91 @@
-import telebot
+from telegram import Update, Bot, ParseMode
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler
 
 # ==== تنظیمات ربات ====
 TOKEN = "8476998300:AAHrIH5HMc9TtXIHd-I8hH5MnDOGAkwMSlI"
 CHANNEL_ID = "@alialisend123"
-REGISTER_LINK = "https://t.me/azadborojerd"
 
-bot = telebot.TeleBot(TOKEN)
+# مراحل دریافت اطلاعات
+NAME, PHONE, PHOTO = range(3)
 
 # دیکشنری برای ذخیره موقت داده‌ها
 user_data = {}
 
-print("ربات در حال اجراست...")
-
 # --- دستور /start ---
-@bot.message_handler(commands=['start'])
-def start(message):
-    print(f"[LOG] کاربر {message.chat.id} /start زد")
-    bot.send_message(message.chat.id, 
-        "سلام به ربات ما خوش آمدید! لطفا نام و نام خانوادگی خود را وارد کنید:")
-    user_data[message.chat.id] = {}
-    bot.register_next_step_handler(message, get_name)
+def start(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    context.bot.send_message(chat_id, "سلام به ربات ما خوش آمدید! لطفا نام و نام خانوادگی خود را وارد کنید:")
+    return NAME
 
 # --- دریافت نام ---
-def get_name(message):
-    user_data[message.chat.id]['name'] = message.text
-    print(f"[LOG] نام دریافت شد: {message.text}")
-    bot.send_message(message.chat.id, "لطفا شماره موبایل خود را وارد کنید:")
-    bot.register_next_step_handler(message, get_phone)
+def get_name(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    user_data[chat_id] = {}
+    user_data[chat_id]['name'] = update.message.text
+    context.bot.send_message(chat_id, "لطفا شماره موبایل خود را وارد کنید:")
+    return PHONE
 
 # --- دریافت شماره موبایل ---
-def get_phone(message):
-    user_data[message.chat.id]['phone'] = message.text
-    print(f"[LOG] شماره موبایل دریافت شد: {message.text}")
-    bot.send_message(message.chat.id, "لطفا یک عکس باکیفیت از انتخاب واحد خود ارسال کنید:")
-    bot.register_next_step_handler(message, get_photo)
+def get_phone(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    user_data[chat_id]['phone'] = update.message.text
+    context.bot.send_message(chat_id, "لطفا یک عکس باکیفیت از انتخاب واحد خود ارسال کنید:")
+    return PHOTO
 
 # --- دریافت عکس ---
-def get_photo(message):
-    if message.content_type == 'photo':
-        file_id = message.photo[-1].file_id
-        user_data[message.chat.id]['photo'] = file_id
-        print(f"[LOG] عکس دریافت شد: {file_id}")
-        bot.send_message(message.chat.id, 
-            "با تشکر از شما، تیم فنی پس از بررسی شما را اد می‌کند.")
+def get_photo(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if update.message.photo:
+        file_id = update.message.photo[-1].file_id
+        user_data[chat_id]['photo'] = file_id
+
+        # پیام تشکر به کاربر
+        context.bot.send_message(chat_id, "با تشکر از شما، تیم فنی پس از بررسی شما را اد می‌کند.")
 
         # ارسال به کانال
-        name = user_data[message.chat.id]['name']
-        phone = user_data[message.chat.id]['phone']
-        bot.send_message(CHANNEL_ID, f"✅ درخواست جدید:\n\n👤 نام: {name}\n📞 شماره: {phone}")
-        bot.send_photo(CHANNEL_ID, file_id, caption=f"عکس انتخاب واحد از {name}")
+        name = user_data[chat_id]['name']
+        phone = user_data[chat_id]['phone']
+        context.bot.send_message(
+            CHANNEL_ID,
+            f"✅ درخواست جدید:\n\n👤 نام: {name}\n📞 شماره: {phone}"
+        )
+        context.bot.send_photo(CHANNEL_ID, file_id, caption=f"عکس انتخاب واحد از {name}")
 
-        # پاک کردن داده‌ها
-        user_data.pop(message.chat.id, None)
-        print(f"[LOG] داده‌های کاربر {message.chat.id} پاک شد.")
+        # پاک کردن داده‌های کاربر
+        user_data.pop(chat_id, None)
+        return ConversationHandler.END
     else:
-        bot.send_message(message.chat.id, "لطفا یک عکس ارسال کنید.")
-        bot.register_next_step_handler(message, get_photo)
+        context.bot.send_message(chat_id, "لطفا یک عکس ارسال کنید.")
+        return PHOTO
 
-# --- اجرای ربات ---
-bot.infinity_polling()
+# --- لغو ---
+def cancel(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    user_data.pop(chat_id, None)
+    context.bot.send_message(chat_id, "عملیات لغو شد.")
+    return ConversationHandler.END
+
+# ==== اجرای ربات ====
+def main():
+    updater = Updater(TOKEN, use_context=True)
+    dp = updater.dispatcher
+
+    # ConversationHandler برای مدیریت مراحل
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('start', start)],
+        states={
+            NAME: [MessageHandler(Filters.text & ~Filters.command, get_name)],
+            PHONE: [MessageHandler(Filters.text & ~Filters.command, get_phone)],
+            PHOTO: [MessageHandler(Filters.photo, get_photo)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)]
+    )
+
+    dp.add_handler(conv_handler)
+
+    print("ربات در حال اجراست...")
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
