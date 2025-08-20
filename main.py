@@ -1,57 +1,46 @@
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-# ======= تنظیمات =======
-TOKEN = os.getenv("TELEGRAM_TOKEN")  # توکن ربات از Environment Variable
-CHANNEL_ID = int(os.getenv("CHANNEL_ID"))  # آیدی کانال از Environment Variable
-REGISTER_LINK = os.getenv("REGISTER_LINK")  # لینک ثبت نهایی از Environment Variable
-# ========================
+# Switch to pyTelegramBotAPI (telebot) to avoid missing 'telegram' module error
+try:
+    import telebot
+except ModuleNotFoundError:
+    print("The 'telebot' module is not installed. Please install it using 'pip install pyTelegramBotAPI'")
+    # Instead of exiting, stop execution gracefully
+    telebot = None
 
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("سلام! لطفاً نام و نام خانوادگی خود را ارسال کنید:")
+if telebot:
+    TOKEN = "8476998300:AAHrIH5HMc9TtXIHd-I8hH5MnDOGAkwMSlI"
+    CHANNEL_ID = "@alialisend123"
 
-def handle_text(update: Update, context: CallbackContext):
-    user_data = context.user_data
-    if "name" not in user_data:
-        user_data["name"] = update.message.text
-        update.message.reply_text("لطفاً شماره موبایل خود را ارسال کنید:")
-    elif "phone" not in user_data:
-        user_data["phone"] = update.message.text
-        update.message.reply_text("لطفاً عکس کارت ملی خود را ارسال کنید:")
-    else:
-        update.message.reply_text("لطفاً عکس کارت ملی خود را ارسال کنید.")
+    bot = telebot.TeleBot(TOKEN)
+    user_data = {}
 
-def handle_photo(update: Update, context: CallbackContext):
-    user_data = context.user_data
-    photo_file = update.message.photo[-1].get_file()
-    caption = f"نام: {user_data.get('name')}\nشماره: {user_data.get('phone')}"
-    
-    # فوروارد به کانال خصوصی
-    photo_file.download("temp.jpg")
-    context.bot.send_photo(chat_id=CHANNEL_ID, photo=open("temp.jpg", "rb"), caption=caption)
-    
-    # دکمه ثبت نهایی
-    keyboard = [[InlineKeyboardButton("ثبت نهایی", url=REGISTER_LINK)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(
-        "اطلاعات شما ثبت شد! برای ثبت نهایی روی دکمه زیر کلیک کنید:", 
-        reply_markup=reply_markup
-    )
-    
-    # پاک کردن داده‌ها
-    user_data.clear()
+    @bot.message_handler(commands=['start'])
+    def start(message):
+        chat_id = message.chat.id
+        bot.send_message(chat_id, "سلام! به ربات ما خوش آمدید.\nلطفا نام و نام خانوادگی خود را بفرستید.")
+        user_data[chat_id] = {}
 
-def main():
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
-    
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
-    dp.add_handler(MessageHandler(Filters.photo, handle_photo))
-    
-    updater.start_polling()
-    updater.idle()
+    @bot.message_handler(func=lambda m: m.text and m.chat.id in user_data and 'name' not in user_data[m.chat.id])
+    def get_name(message):
+        chat_id = message.chat.id
+        user_data[chat_id]['name'] = message.text
+        bot.send_message(chat_id, "لطفا شماره موبایل خود را وارد کنید.")
 
-if __name__ == "__main__":
-    main()
+    @bot.message_handler(func=lambda m: m.text and m.chat.id in user_data and 'name' in user_data[m.chat.id] and 'phone' not in user_data[m.chat.id])
+    def get_phone(message):
+        chat_id = message.chat.id
+        user_data[chat_id]['phone'] = message.text
+        bot.send_message(chat_id, "لطفا عکس با کیفیت از انتخاب واحد خود ارسال کنید.")
+
+    @bot.message_handler(content_types=['photo'])
+    def get_photo(message):
+        chat_id = message.chat.id
+        if chat_id in user_data:
+            file_id = message.photo[-1].file_id
+            user_data[chat_id]['photo'] = file_id
+            bot.send_message(chat_id, "با تشکر از شما، تیم فنی پس از بررسی شما را اضافه می‌کند.")
+            bot.send_message(CHANNEL_ID, f"نام: {user_data[chat_id]['name']}\nشماره: {user_data[chat_id]['phone']}\nعکس انتخاب واحد: {file_id}")
+            del user_data[chat_id]
+
+    bot.infinity_polling()
