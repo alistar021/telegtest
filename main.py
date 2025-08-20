@@ -1,73 +1,61 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-import logging
-import os
+import telebot
 
-# ======= تنظیمات =======
+# ==== تنظیمات ربات ====
 TOKEN = "8476998300:AAHrIH5HMc9TtXIHd-I8hH5MnDOGAkwMSlI"
 CHANNEL_ID = "@alialisend123"
-REGISTER_LINK = "https://t.me/YourFinalRegisterLink"
-# ========================
+REGISTER_LINK = "https://t.me/azadborojerd"
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+bot = telebot.TeleBot(TOKEN)
 
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("سلام! لطفاً نام و نام خانوادگی خود را ارسال کنید:")
+# دیکشنری برای ذخیره موقت داده‌ها
+user_data = {}
 
-def handle_text(update: Update, context: CallbackContext):
-    user_data = context.user_data
-    if "name" not in user_data:
-        user_data["name"] = update.message.text
-        update.message.reply_text("لطفاً شماره موبایل خود را به صورت صحیح ارسال کنید:")
-    elif "phone" not in user_data:
-        user_data["phone"] = update.message.text
-        update.message.reply_text("لطفاً عکس دانشجویی یا عکس انتخاب واحد موجود در سایت را ارسال کنید:")
+print("ربات در حال اجراست...")
+
+# --- دستور /start ---
+@bot.message_handler(commands=['start'])
+def start(message):
+    print(f"[LOG] کاربر {message.chat.id} /start زد")
+    bot.send_message(message.chat.id, 
+        "سلام به ربات ما خوش آمدید! لطفا نام و نام خانوادگی خود را وارد کنید:")
+    user_data[message.chat.id] = {}
+    bot.register_next_step_handler(message, get_name)
+
+# --- دریافت نام ---
+def get_name(message):
+    user_data[message.chat.id]['name'] = message.text
+    print(f"[LOG] نام دریافت شد: {message.text}")
+    bot.send_message(message.chat.id, "لطفا شماره موبایل خود را وارد کنید:")
+    bot.register_next_step_handler(message, get_phone)
+
+# --- دریافت شماره موبایل ---
+def get_phone(message):
+    user_data[message.chat.id]['phone'] = message.text
+    print(f"[LOG] شماره موبایل دریافت شد: {message.text}")
+    bot.send_message(message.chat.id, "لطفا یک عکس باکیفیت از انتخاب واحد خود ارسال کنید:")
+    bot.register_next_step_handler(message, get_photo)
+
+# --- دریافت عکس ---
+def get_photo(message):
+    if message.content_type == 'photo':
+        file_id = message.photo[-1].file_id
+        user_data[message.chat.id]['photo'] = file_id
+        print(f"[LOG] عکس دریافت شد: {file_id}")
+        bot.send_message(message.chat.id, 
+            "با تشکر از شما، تیم فنی پس از بررسی شما را اد می‌کند.")
+
+        # ارسال به کانال
+        name = user_data[message.chat.id]['name']
+        phone = user_data[message.chat.id]['phone']
+        bot.send_message(CHANNEL_ID, f"✅ درخواست جدید:\n\n👤 نام: {name}\n📞 شماره: {phone}")
+        bot.send_photo(CHANNEL_ID, file_id, caption=f"عکس انتخاب واحد از {name}")
+
+        # پاک کردن داده‌ها
+        user_data.pop(message.chat.id, None)
+        print(f"[LOG] داده‌های کاربر {message.chat.id} پاک شد.")
     else:
-        update.message.reply_text("لطفاً عکس دانشجویی یا عکس انتخاب واحد موجود در سایت را ارسال کنید.")
+        bot.send_message(message.chat.id, "لطفا یک عکس ارسال کنید.")
+        bot.register_next_step_handler(message, get_photo)
 
-def handle_photo(update: Update, context: CallbackContext):
-    user_data = context.user_data
-    try:
-        photo_file = update.message.photo[-1].get_file()
-        caption = f"نام: {user_data.get('name')}\nشماره: {user_data.get('phone')}"
-        
-        temp_path = "temp.jpg"
-        photo_file.download(temp_path)
-        
-        with open(temp_path, "rb") as f:
-            context.bot.send_photo(chat_id=CHANNEL_ID, photo=f, caption=caption)
-        
-        keyboard = [[InlineKeyboardButton("ثبت نهایی", url=REGISTER_LINK)]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text(
-            "اطلاعات شما ثبت شد! برای ثبت نهایی روی دکمه زیر کلیک کنید:",
-            reply_markup=reply_markup
-        )
-        
-        update.message.reply_text(
-            "تشکر از این که ما را در ارائه خدمات بهتر دانشجویی یاری می‌کنید."
-        )
-        
-        user_data.clear()
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-    except Exception as e:
-        logging.error(f"Error sending photo: {e}")
-        update.message.reply_text("مشکلی پیش آمد! لطفاً دوباره امتحان کنید.")
-
-def main():
-    updater = Updater(TOKEN)  # حذف use_context=True
-    dp = updater.dispatcher
-    
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
-    dp.add_handler(MessageHandler(Filters.photo, handle_photo))
-    
-    updater.start_polling()
-    updater.idle()
-
-if __name__ == "__main__":
-    main()
+# --- اجرای ربات ---
+bot.infinity_polling()
