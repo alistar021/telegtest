@@ -59,4 +59,3 @@ def get_photo(message):
 
 # --- اجرای ربات ---
 bot.infinity_polling()
-
