@@ -1,63 +1,37 @@
-import os
-import requests
-from flask import Flask, request, jsonify
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-TOKEN = os.getenv('TELEGRAM_TOKEN', 'YOUR_TOKEN_HERE')
-CHANNEL_ID = os.getenv('CHANNEL_ID', '@yourchannel')
+# توکن ربات
+BOT_TOKEN = "8476998300:AAGxngE2JYli7AACp4RqGDWOdBFBh1QgUsM"
 
-user_data = {}
+# دستور /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("سلام! ربات شما آماده به کار است ✅")
 
-app = Flask(__name__)
+# دستور /id برای گرفتن آیدی کاربر
+async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    await update.message.reply_text(f"آیدی تلگرام شما: {user_id}")
 
-TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
-
-def send_message(chat_id, text):
-    url = f"{TELEGRAM_API}/sendMessage"
-    payload = {
-        'chat_id': chat_id,
-        'text': text
-    }
-    requests.post(url, data=payload)
-
-@app.route(f"/{TOKEN}", methods=['POST'])
-def webhook():
-    update = request.get_json()
-
-    if 'message' in update:
-        chat_id = update['message']['chat']['id']
-
-        # دریافت متن پیام
-        if 'text' in update['message']:
-            text = update['message']['text']
-
-            if text == '/start':
-                send_message(chat_id, "سلام! به ربات ما خوش آمدید.\nلطفا نام و نام خانوادگی خود را بفرستید.")
-                user_data[chat_id] = {}
-            elif chat_id in user_data and 'name' not in user_data[chat_id]:
-                user_data[chat_id]['name'] = text
-                send_message(chat_id, "لطفا شماره موبایل خود را وارد کنید.")
-            elif chat_id in user_data and 'name' in user_data[chat_id] and 'phone' not in user_data[chat_id]:
-                user_data[chat_id]['phone'] = text
-                send_message(chat_id, "لطفا عکس با کیفیت از انتخاب واحد خود ارسال کنید.")
-
-        # دریافت عکس
-        elif 'photo' in update['message']:
-            if chat_id in user_data:
-                file_id = update['message']['photo'][-1]['file_id']
-                user_data[chat_id]['photo'] = file_id
-
-                send_message(chat_id, "با تشکر از شما، تیم فنی پس از بررسی شما را اضافه می‌کند.")
-                # ارسال اطلاعات به کانال
-                send_message(CHANNEL_ID,
-                             f"📌 نام: {user_data[chat_id]['name']}\n"
-                             f"📱 شماره: {user_data[chat_id]['phone']}\n"
-                             f"🖼️ عکس انتخاب واحد: {file_id}")
-
-                del user_data[chat_id]
-
-    return jsonify({"ok": True})
+# دستور /help برای نمایش لیست دستورات
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_text = (
+        "📌 لیست دستورات ربات:\n\n"
+        "/start - شروع ربات\n"
+        "/id - دریافت آیدی عددی شما\n"
+        "/help - نمایش این راهنما\n"
+    )
+    await update.message.reply_text(help_text)
 
 if __name__ == "__main__":
-    # روی Railway پورت را از ENV می‌گیرد
-    PORT = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=PORT)
+    # ساخت اپلیکیشن
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    # اضافه کردن دستورها
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("id", get_id))
+    app.add_handler(CommandHandler("help", help_command))
+
+    # اجرای ربات
+    print("ربات در حال اجراست...")
+    app.run_polling()
