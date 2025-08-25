@@ -3,9 +3,10 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 import logging
 
 # ======= تنظیمات =======
-TOKEN = "8476998300:AAGY2UnyUcrhm29IBvg8BYyCXgRxy73GvVY"  # توکن ربات شما
-CHANNEL_ID = "@alialisend123"  # آیدی کانال عمومی
-REGISTER_LINK = "https://t.me/YourFinalRegisterLink"  # لینک ثبت نهایی
+TOKEN = "8476998300:AAGY2UnyUcrhm29IBvg8BYyCXgRxy73GvVY"
+CHANNEL_ID = "@alialisend123"
+# لینک کانال نهایی که بعد از ثبت برای کاربر فرستاده میشه
+FINAL_LINK = "https://t.me/azadborojerd"
 # ========================
 
 logging.basicConfig(
@@ -14,19 +15,32 @@ logging.basicConfig(
 )
 
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text("👋 سلام دوست عزیز!\n\nلطفاً *نام و نام خانوادگی* خودت رو برام بفرست 🙏",
-                              parse_mode="Markdown")
+    update.message.reply_text(
+        "👋 سلام دوست عزیز!\n\nلطفاً *نام و نام خانوادگی* خودت رو برام بفرست 🙏",
+        parse_mode="Markdown"
+    )
 
 def handle_text(update: Update, context: CallbackContext):
     user_data = context.user_data
     if "name" not in user_data:
         user_data["name"] = update.message.text
-        update.message.reply_text("📞 عالی! حالا لطفاً *شماره موبایل* خودت رو وارد کن:", parse_mode="Markdown")
+        # اسم کاربر در پیام شماره موبایل استفاده میشه
+        user_name = user_data["name"].split()[0]  # فقط اسم کوچک
+        update.message.reply_text(
+            f"📞 عالی {user_name}! حالا لطفاً *شمارتو* بده:",
+            parse_mode="Markdown"
+        )
     elif "phone" not in user_data:
         user_data["phone"] = update.message.text
-        update.message.reply_text("🖼️ خوبه! حالا لطفاً عکس دانشجویی یا انتخاب واحد خودت رو بفرست:", parse_mode="Markdown")
+        update.message.reply_text(
+            "🖼️ خوبه! حالا لطفاً عکس دانشجویی یا انتخاب واحد خودت رو بفرست:",
+            parse_mode="Markdown"
+        )
     else:
-        update.message.reply_text("⚠️ لطفاً عکس دانشجویی یا انتخاب واحد خود را ارسال کنید.", parse_mode="Markdown")
+        update.message.reply_text(
+            "⚠️ لطفاً عکس دانشجویی یا انتخاب واحد خود را ارسال کنید.",
+            parse_mode="Markdown"
+        )
 
 def handle_photo(update: Update, context: CallbackContext):
     user_data = context.user_data
@@ -38,26 +52,30 @@ def handle_photo(update: Update, context: CallbackContext):
         photo_file.download("temp.jpg")
         context.bot.send_photo(chat_id=CHANNEL_ID, photo=open("temp.jpg", "rb"), caption=caption)
         
-        # دکمه ثبت نهایی
-        keyboard = [[InlineKeyboardButton("✅ ثبت نهایی", url=REGISTER_LINK)]]
+        # پیام با دکمه شیشه‌ای
+        keyboard = [[InlineKeyboardButton("✅ ثبت نهایی", callback_data="final_click")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         update.message.reply_text(
             "🎉 اطلاعات شما ثبت شد! برای ثبت نهایی روی دکمه زیر کلیک کنید:", 
             reply_markup=reply_markup
         )
 
-        update.message.reply_text(
-            "🙏 ممنون از این که ما را در ارائه خدمات بهتر دانشجویی یاری می‌کنید.\n"
-            "💬 مارا در تریبون دانشگاه آزاد بروجرد دنبال کنید.\n\n"
-            "🎓 تیم فنی پس از بررسی اطلاعات شما، به صورت رسمی شما را وارد گروه خواهند کرد.",
-            parse_mode="Markdown"
-        )
-
-        user_data.clear()
-
     except Exception as e:
         logging.error(f"Error sending photo: {e}")
         update.message.reply_text("❌ مشکلی پیش آمد! لطفاً دوباره امتحان کنید.", parse_mode="Markdown")
+
+# مدیریت کلیک روی دکمه شیشه‌ای
+def button_click(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+    # پیام بعدی با لینک کانال نهایی
+    query.message.reply_text(
+        f"🙏 ممنون از این که ما را در ارائه خدمات بهتر دانشجویی یاری می‌کنید.\n"
+        f"💬 مارا در تریبون دانشگاه آزاد بروجرد دنبال کنید.\n\n"
+        f"🎓 لینک کانال: {FINAL_LINK}"
+    )
+    # پاک کردن داده‌های کاربر
+    context.user_data.clear()
 
 def main():
     updater = Updater(TOKEN, use_context=True)
@@ -66,6 +84,11 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
     dp.add_handler(MessageHandler(Filters.photo, handle_photo))
+    dp.add_handler(MessageHandler(Filters.command, lambda u, c: None))  # جلوگیری از خطای دیگر دستورها
+    
+    # اضافه کردن CallbackQueryHandler برای دکمه شیشه‌ای
+    from telegram.ext import CallbackQueryHandler
+    dp.add_handler(CallbackQueryHandler(button_click))
     
     updater.start_polling()
     updater.idle()
