@@ -1,13 +1,17 @@
-import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+import logging
 
 # ======= تنظیمات =======
-TOKEN = "8476998300:AAGxngE2JYli7AACp4RqGDWOdBFBh1QgUsM"
-CHANNEL_ID = "@alialisend123"  # کانال عمومی
+TOKEN = "8476998300:AAHrIH5HMc9TtXIHd-I8hH5MnDOGAkwMSlI"  # توکن ربات شما
+CHANNEL_ID = "@alialisend123"  # آیدی کانال عمومی
 REGISTER_LINK = "https://t.me/YourFinalRegisterLink"  # لینک ثبت نهایی
-GROUP_LINK = "https://t.me/azadborojerd"  # لینک گروه
 # ========================
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
 def start(update: Update, context: CallbackContext):
     update.message.reply_text("👋 سلام دوست عزیز!\n\nلطفاً *نام و نام خانوادگی* خودت رو برام بفرست 🙏",
@@ -15,64 +19,53 @@ def start(update: Update, context: CallbackContext):
 
 def handle_text(update: Update, context: CallbackContext):
     user_data = context.user_data
-    text = update.message.text
-
     if "name" not in user_data:
-        user_data["name"] = text
+        user_data["name"] = update.message.text
         update.message.reply_text("📞 عالی! حالا لطفاً *شماره موبایل* خودت رو وارد کن:", parse_mode="Markdown")
-
     elif "phone" not in user_data:
-        user_data["phone"] = text
-        update.message.reply_text("🆔 خوبه! حالا *آی‌دی تلگرام*ت رو (با @) بفرست:", parse_mode="Markdown")
-
-    elif "telegram_id" not in user_data:
-        user_data["telegram_id"] = text
-        update.message.reply_text("🖼️ لطفاً یک *عکس کارت ملی یا مدرک معتبر* بفرست:", parse_mode="Markdown")
-
+        user_data["phone"] = update.message.text
+        update.message.reply_text("🖼️ خوبه! حالا لطفاً عکس انتخاب واحد خودت رو بفرست:", parse_mode="Markdown")
     else:
-        update.message.reply_text("⚠️ لطفاً عکس کارت ملی یا مدرک معتبر خود را ارسال کنید.")
+        update.message.reply_text("⚠️ لطفاً عکس انتخاب واحد خود را ارسال کنید.", parse_mode="Markdown")
 
 def handle_photo(update: Update, context: CallbackContext):
     user_data = context.user_data
-    photo_file = update.message.photo[-1].get_file()
+    try:
+        photo_file = update.message.photo[-1].get_file()
+        caption = f"👤 نام: {user_data.get('name')}\n📞 شماره: {user_data.get('phone')}"
+        
+        # فوروارد به کانال
+        photo_file.download("temp.jpg")
+        context.bot.send_photo(chat_id=CHANNEL_ID, photo=open("temp.jpg", "rb"), caption=caption)
+        
+        # دکمه ثبت نهایی
+        keyboard = [[InlineKeyboardButton("✅ ثبت نهایی", url=REGISTER_LINK)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text(
+            "🎉 اطلاعات شما ثبت شد! برای ثبت نهایی روی دکمه زیر کلیک کنید:", 
+            reply_markup=reply_markup
+        )
 
-    caption = (
-        f"👤 نام: {user_data.get('name')}\n"
-        f"📞 شماره: {user_data.get('phone')}\n"
-        f"🆔 آی‌دی: {user_data.get('telegram_id')}"
-    )
-
-    # ارسال به کانال
-    photo_file.download("temp.jpg")
-    context.bot.send_photo(chat_id=CHANNEL_ID, photo=open("temp.jpg", "rb"), caption=caption)
-
-    # دکمه ثبت نهایی
-    keyboard = [[InlineKeyboardButton("✅ ثبت نهایی", callback_data="final_register")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text("🎉 اطلاعاتت ثبت شد! برای تکمیل ثبت‌نام روی دکمه زیر بزن:",
-                              reply_markup=reply_markup)
-
-    # پاک کردن داده‌ها بعد از ارسال
-    user_data.clear()
-
-def button_handler(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()
-
-    if query.data == "final_register":
-        query.edit_message_text("✅ اطلاعات شما با موفقیت ثبت شد.")
-        context.bot.send_message(chat_id=query.message.chat_id,
-                                 text=f"📌 برای ادامه به این گروه بپیوندید:\n{GROUP_LINK}")
+        # پیام تشکر نهایی
+        update.message.reply_text(
+            "🙏 ممنون از این که ما را در ارائه خدمات بهتر دانشجویی یاری می‌کنید.\n"
+            "💬 مارا در تریبون دانشگاه آزاد بروجرد دنبال کنید.",
+            parse_mode="Markdown"
+        )
+        
+        user_data.clear()
+    except Exception as e:
+        logging.error(f"Error sending photo: {e}")
+        update.message.reply_text("❌ مشکلی پیش آمد! لطفاً دوباره امتحان کنید.", parse_mode="Markdown")
 
 def main():
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
-
+    
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
     dp.add_handler(MessageHandler(Filters.photo, handle_photo))
-    dp.add_handler(CallbackQueryHandler(button_handler))
-
+    
     updater.start_polling()
     updater.idle()
 
