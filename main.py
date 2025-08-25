@@ -1,11 +1,10 @@
-import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # ======= تنظیمات =======
-TOKEN = os.getenv("8476998300:AAGxngE2JYli7AACp4RqGDWOdBFBh1QgUsM")  # توکن ربات از Environment Variable
-CHANNEL_ID = int(os.getenv("@alialisend123"))  # آیدی کانال از Environment Variable
-REGISTER_LINK = os.getenv("REGISTER_LINK")  # لینک ثبت نهایی از Environment Variable
+TOKEN = "8476998300:AAGxngE2JYli7AACp4RqGDWOdBFBh1QgUsM"   # توکن رباتت
+CHANNEL_ID = "@alialisend123"   # کانال عمومی تو (اگر خصوصی بود باید -100xxxx بذاریم)
+REGISTER_LINK = "https://t.me/YourFinalRegisterLink"  # لینک ثبت نهایی
 # ========================
 
 def start(update: Update, context: CallbackContext):
@@ -24,13 +23,12 @@ def handle_text(update: Update, context: CallbackContext):
 
 def handle_photo(update: Update, context: CallbackContext):
     user_data = context.user_data
-    photo_file = update.message.photo[-1].get_file()
+    photo = update.message.photo[-1].file_id  # استفاده از file_id به جای ذخیره فایل
     caption = f"نام: {user_data.get('name')}\nشماره: {user_data.get('phone')}"
-    
-    # فوروارد به کانال خصوصی
-    photo_file.download("temp.jpg")
-    context.bot.send_photo(chat_id=CHANNEL_ID, photo=open("temp.jpg", "rb"), caption=caption)
-    
+
+    # ارسال به کانال
+    context.bot.send_photo(chat_id=CHANNEL_ID, photo=photo, caption=caption)
+
     # دکمه ثبت نهایی
     keyboard = [[InlineKeyboardButton("ثبت نهایی", url=REGISTER_LINK)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -38,18 +36,18 @@ def handle_photo(update: Update, context: CallbackContext):
         "اطلاعات شما ثبت شد! برای ثبت نهایی روی دکمه زیر کلیک کنید:", 
         reply_markup=reply_markup
     )
-    
+
     # پاک کردن داده‌ها
     user_data.clear()
 
 def main():
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
-    
+
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
     dp.add_handler(MessageHandler(Filters.photo, handle_photo))
-    
+
     updater.start_polling()
     updater.idle()
 
