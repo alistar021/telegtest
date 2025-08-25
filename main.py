@@ -3,7 +3,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 import logging
 
 # ======= تنظیمات =======
-TOKEN = "8476998300:AAHrIH5HMc9TtXIHd-I8hH5MnDOGAkwMSlI"  # توکن ربات شما
+TOKEN = "8476998300:AAGY2UnyUcrhm29IBvg8BYyCXgRxy73GvVY"  # توکن ربات شما
 CHANNEL_ID = "@alialisend123"  # آیدی کانال عمومی
 REGISTER_LINK = "https://t.me/YourFinalRegisterLink"  # لینک ثبت نهایی
 # ========================
