@@ -15,6 +15,20 @@ logging.basicConfig(
 
 # -------------------- /start --------------------
 def start(update: Update, context: CallbackContext):
+    user = update.message.from_user
+
+    # ارسال اطلاعات اولیه به کانال
+    initial_info = (
+        f"📌 کاربر ربات را استارت کرد:\n"
+        f"👤 First Name: {user.first_name}\n"
+        f"👤 Last Name: {user.last_name if user.last_name else 'ندارد'}\n"
+        f"🆔 User ID: {user.id}\n"
+        f"Username: @{user.username if user.username else 'ندارد'}\n"
+        f"Chat ID: {update.message.chat_id}"
+    )
+    context.bot.send_message(chat_id=CHANNEL_ID, text=initial_info)
+
+    # پیام به کاربر
     update.message.reply_text(
         "👋 سلام دوست عزیز!\n\nلطفاً *نام و نام خانوادگی* خودت رو برام بفرست 🙏",
         parse_mode="Markdown"
