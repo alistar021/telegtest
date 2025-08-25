@@ -3,8 +3,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # ======= تنظیمات =======
-TOKEN = os.getenv("TELEGRAM_TOKEN")  # توکن ربات از Environment Variable
-CHANNEL_ID = int(os.getenv("CHANNEL_ID"))  # آیدی کانال از Environment Variable
+TOKEN = os.getenv("8476998300:AAGxngE2JYli7AACp4RqGDWOdBFBh1QgUsM")  # توکن ربات از Environment Variable
+CHANNEL_ID = int(os.getenv("@alialisend123"))  # آیدی کانال از Environment Variable
 REGISTER_LINK = os.getenv("REGISTER_LINK")  # لینک ثبت نهایی از Environment Variable
 # ========================
 
